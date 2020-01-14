@@ -8,6 +8,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
@@ -76,7 +77,7 @@ public class SchedulerStarter implements ApplicationContextAware {
         String cron = scheduler.getCorn();
         String desc = scheduler.getDesc();
         BaseTaskService taskService = null;
-        CronTrigger cronTrigger = new CronTrigger(cron);
+
 
         try {
             taskService = applicationContext.getBean(task, BaseTaskService.class);
@@ -86,10 +87,18 @@ public class SchedulerStarter implements ApplicationContextAware {
 
         if (taskService != null) {
             taskService.setScheduler(scheduler);
-            ScheduledFuture<?> future = taskScheduler.schedule(taskService, cronTrigger);
-            taskService.setFuture(future);
 
-            scheduledMap.put(id, new SchedulerWarp(scheduler, future));
+            // 没有cron表达式，直接触发一次
+            if (StringUtils.isEmpty(cron)) {
+                taskScheduler.submit(taskService);
+            } else {
+                // 有corn表达式，按定时任务处理
+                CronTrigger cronTrigger = new CronTrigger(cron);
+                ScheduledFuture<?> future = taskScheduler.schedule(taskService, cronTrigger);
+                taskService.setFuture(future);
+
+                scheduledMap.put(id, new SchedulerWarp(scheduler, future));
+            }
 
             log.info("id: [{}] task: [{}] corn: [{}] desc:[{}] 启动成功！", id, task, cron, desc);
         }
