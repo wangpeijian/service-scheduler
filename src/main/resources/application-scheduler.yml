@@ -1,11 +1,11 @@
 scheduler:
     configs:
         -   id: test_one_task_5
-            task: TestOneTask
+            task: testTwoTask
             corn: "0/5 * * * * ?"
             desc: 测试定时任务配置2
 
         -   id: test_one_task_3
-            task: TestOneTask
+            task: testOneTask
             corn: "0/3 * * * * ?"
             desc: 测试定时任务配置1

@@ -8,12 +8,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * @author wangpejian
- * @date 2020/1/7 下午4:53
+ * @date 2020/1/14 下午4:15
  */
 @Slf4j
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
-public class TestOneTask extends BaseTaskService {
+public class TestTwoTask extends BaseTaskService {
     /**
      * 定时任务实现方法
      */

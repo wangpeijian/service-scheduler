@@ -2,14 +2,14 @@ package com.wpj.servicescheduler.config;
 
 import com.wpj.servicescheduler.service.BaseTaskService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.scheduling.support.CronTrigger;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
 import java.util.stream.Collectors;
@@ -21,27 +21,28 @@ import java.util.stream.Collectors;
  */
 @Slf4j
 @Component
-public class SchedulerStarter {
+public class SchedulerStarter implements ApplicationContextAware {
 
     private final SchedulerConfig schedulerConfig;
-    private final List<BaseTaskService> taskServices;
-    public ConcurrentHashMap<String, SchedulerWarp> scheduledMap;
-    private Map<String, BaseTaskService> tasks;
-    private ThreadPoolTaskScheduler taskScheduler;
 
-    public SchedulerStarter(SchedulerConfig schedulerConfig, List<BaseTaskService> taskServices) {
+    private ConcurrentHashMap<String, SchedulerWarp> scheduledMap;
+    private ThreadPoolTaskScheduler taskScheduler;
+    private ApplicationContext applicationContext;
+
+    public SchedulerStarter(SchedulerConfig schedulerConfig) {
         this.schedulerConfig = schedulerConfig;
-        this.taskServices = taskServices;
     }
 
-    @PostConstruct
-    private void postConstruct() {
-        int serviceSize = taskServices.size();
-        taskScheduler = this.getThreadPool(serviceSize);
-        scheduledMap = new ConcurrentHashMap<>(serviceSize);
+    @Override
+    public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
+        this.applicationContext = applicationContext;
 
-        this.tasks = this.getTaskMap(taskServices);
-        schedulerConfig.getConfigs().forEach(this::addTask);
+        int serviceSize = schedulerConfig.getConfigs().size();
+
+        this.taskScheduler = this.getThreadPool(serviceSize);
+        this.scheduledMap = new ConcurrentHashMap<>(serviceSize);
+
+        this.schedulerConfig.getConfigs().forEach(this::addTask);
     }
 
     /**
@@ -56,23 +57,6 @@ public class SchedulerStarter {
         taskScheduler.initialize();
 
         return taskScheduler;
-    }
-
-    /**
-     * 创建task映射
-     *
-     * @param taskServices
-     * @return
-     */
-    private Map<String, BaseTaskService> getTaskMap(List<BaseTaskService> taskServices) {
-        HashMap<String, BaseTaskService> map = new HashMap<>(taskServices.size());
-
-        taskServices.forEach(baseTaskService -> {
-            String code = baseTaskService.getClass().getSimpleName();
-            map.put(code, baseTaskService);
-        });
-
-        return map;
     }
 
     /**
@@ -91,21 +75,23 @@ public class SchedulerStarter {
         String task = scheduler.getTask();
         String cron = scheduler.getCorn();
         String desc = scheduler.getDesc();
-        BaseTaskService taskService = tasks.get(task);
+        BaseTaskService taskService = null;
         CronTrigger cronTrigger = new CronTrigger(cron);
+
+        try {
+            taskService = applicationContext.getBean(task, BaseTaskService.class);
+        } catch (Exception e) {
+            log.error("[{}],没有匹配到对应的bean", task, e);
+        }
 
         if (taskService != null) {
             taskService.setScheduler(scheduler);
             ScheduledFuture<?> future = taskScheduler.schedule(taskService, cronTrigger);
             taskService.setFuture(future);
 
-            if (future != null) {
-                scheduledMap.put(id, new SchedulerWarp(scheduler, future));
-            }
+            scheduledMap.put(id, new SchedulerWarp(scheduler, future));
 
             log.info("id: [{}] task: [{}] corn: [{}] desc:[{}] 启动成功！", id, task, cron, desc);
-        } else {
-            log.error("[{}],没有匹配到对应的bean", task);
         }
     }
 
@@ -115,13 +101,17 @@ public class SchedulerStarter {
      * @param id
      */
     public void stopTask(String id) {
+        log.info("准备移除定时任务：[{}]", id);
+
         SchedulerWarp schedulerWarp = scheduledMap.get(id);
-        ScheduledFuture<?> future = schedulerWarp.getFuture();
-        if (future == null) {
+
+        if (schedulerWarp == null) {
             log.error("id [{}] 不存在", id);
         } else {
+            ScheduledFuture<?> future = schedulerWarp.getFuture();
             future.cancel(true);
             scheduledMap.remove(id);
+            log.info("移除定时任务：[{}]", id);
         }
     }
 
@@ -132,8 +122,17 @@ public class SchedulerStarter {
      */
     public void updateTask(SchedulerConfig.Scheduler scheduler) {
         String id = scheduler.getId();
-        this.stopTask(id);
-        this.addTask(scheduler);
+        log.info("准备更新定时任务：[{}]", id);
+
+        SchedulerWarp schedulerWarp = scheduledMap.get(id);
+
+        if (schedulerWarp == null) {
+            log.error("id [{}] 不存在", id);
+        } else {
+            this.stopTask(id);
+            this.addTask(scheduler);
+            log.info("更新定时任务：[{}]", id);
+        }
     }
 
     /**
@@ -144,4 +143,6 @@ public class SchedulerStarter {
     public List<SchedulerConfig.Scheduler> getTasks() {
         return scheduledMap.values().stream().map(SchedulerWarp::getScheduler).collect(Collectors.toList());
     }
+
+
 }

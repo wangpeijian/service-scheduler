@@ -30,8 +30,8 @@ public class TaskController {
         return "ok";
     }
 
-    @DeleteMapping("")
-    public String remove(@RequestParam("id") String id) {
+    @DeleteMapping("{id}")
+    public String remove(@PathVariable("id") String id) {
         schedulerStarter.stopTask(id);
         return "ok";
     }
