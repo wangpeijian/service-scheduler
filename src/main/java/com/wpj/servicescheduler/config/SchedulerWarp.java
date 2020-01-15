@@ -10,10 +10,10 @@ import java.util.concurrent.ScheduledFuture;
  */
 @Data
 public class SchedulerWarp {
-    private SchedulerConfig.Scheduler scheduler;
+    private Scheduler scheduler;
     private ScheduledFuture<?> future;
 
-    SchedulerWarp(SchedulerConfig.Scheduler scheduler, ScheduledFuture<?> future) {
+    SchedulerWarp(Scheduler scheduler, ScheduledFuture<?> future) {
         this.scheduler = scheduler;
         this.future = future;
     }

@@ -1,6 +1,6 @@
-package com.wpj.servicescheduler.service.impl;
+package com.wpj.servicescheduler.task.service.impl;
 
-import com.wpj.servicescheduler.service.BaseTaskService;
+import com.wpj.servicescheduler.task.service.BaseTaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.context.annotation.Scope;
@@ -8,12 +8,12 @@ import org.springframework.stereotype.Component;
 
 /**
  * @author wangpejian
- * @date 2020/1/14 下午4:15
+ * @date 2020/1/7 下午4:53
  */
 @Slf4j
 @Component
 @Scope(BeanDefinition.SCOPE_PROTOTYPE)
-public class TestTwoTask extends BaseTaskService {
+public class TestOneTask extends BaseTaskService {
     /**
      * 定时任务实现方法
      */

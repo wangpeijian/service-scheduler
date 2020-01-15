@@ -1,7 +1,7 @@
 package com.wpj.servicescheduler.api;
 
 import com.alibaba.fastjson.JSON;
-import com.wpj.servicescheduler.config.SchedulerConfig;
+import com.wpj.servicescheduler.config.Scheduler;
 import com.wpj.servicescheduler.config.SchedulerStarter;
 import org.springframework.web.bind.annotation.*;
 
@@ -19,20 +19,20 @@ public class TaskController {
     SchedulerStarter schedulerStarter;
 
     @PostMapping("")
-    public String add(@RequestBody SchedulerConfig.Scheduler scheduler) {
-        schedulerStarter.addTask(scheduler);
+    public String add(@RequestBody Scheduler scheduler) {
+        schedulerStarter.add(scheduler);
         return "ok";
     }
 
     @PutMapping("")
-    public String update(@RequestBody SchedulerConfig.Scheduler scheduler) {
-        schedulerStarter.updateTask(scheduler);
+    public String update(@RequestBody Scheduler scheduler) {
+        schedulerStarter.update(scheduler);
         return "ok";
     }
 
     @DeleteMapping("{id}")
     public String remove(@PathVariable("id") String id) {
-        schedulerStarter.stopTask(id);
+        schedulerStarter.remove(id);
         return "ok";
     }
 

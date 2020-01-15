@@ -1,6 +1,7 @@
 package com.wpj.servicescheduler.config;
 
-import com.wpj.servicescheduler.service.BaseTaskService;
+import com.wpj.servicescheduler.scheduler.service.SchedulerService;
+import com.wpj.servicescheduler.task.service.BaseTaskService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
@@ -13,7 +14,6 @@ import org.springframework.util.StringUtils;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledFuture;
-import java.util.stream.Collectors;
 
 
 /**
@@ -24,26 +24,28 @@ import java.util.stream.Collectors;
 @Component
 public class SchedulerStarter implements ApplicationContextAware {
 
-    private final SchedulerConfig schedulerConfig;
+
+    private final SchedulerService schedulerService;
 
     private ConcurrentHashMap<String, SchedulerWarp> scheduledMap;
-    private ThreadPoolTaskScheduler taskScheduler;
+    private ThreadPoolTaskScheduler taskSchedulerThreadPool;
     private ApplicationContext applicationContext;
 
-    public SchedulerStarter(SchedulerConfig schedulerConfig) {
-        this.schedulerConfig = schedulerConfig;
+    public SchedulerStarter(SchedulerService schedulerService) {
+        this.schedulerService = schedulerService;
     }
 
     @Override
     public void setApplicationContext(ApplicationContext applicationContext) throws BeansException {
         this.applicationContext = applicationContext;
 
-        int serviceSize = schedulerConfig.getConfigs().size();
+        List<Scheduler> configs = schedulerService.getConfig();
+        int serviceSize = Math.max(1, configs.size());
 
-        this.taskScheduler = this.getThreadPool(serviceSize);
+        this.taskSchedulerThreadPool = this.getThreadPool(serviceSize);
         this.scheduledMap = new ConcurrentHashMap<>(serviceSize);
 
-        this.schedulerConfig.getConfigs().forEach(this::addTask);
+        configs.forEach(this::addTask);
     }
 
     /**
@@ -53,11 +55,11 @@ public class SchedulerStarter implements ApplicationContextAware {
      * @return
      */
     private ThreadPoolTaskScheduler getThreadPool(int size) {
-        ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
-        taskScheduler.setPoolSize(size);
-        taskScheduler.initialize();
+        ThreadPoolTaskScheduler taskSchedulerThreadPool = new ThreadPoolTaskScheduler();
+        taskSchedulerThreadPool.setPoolSize(size);
+        taskSchedulerThreadPool.initialize();
 
-        return taskScheduler;
+        return taskSchedulerThreadPool;
     }
 
     /**
@@ -65,7 +67,7 @@ public class SchedulerStarter implements ApplicationContextAware {
      *
      * @param scheduler
      */
-    public void addTask(SchedulerConfig.Scheduler scheduler) {
+    private void addTask(Scheduler scheduler) {
         String id = scheduler.getId();
 
         if (scheduledMap.containsKey(id)) {
@@ -78,7 +80,6 @@ public class SchedulerStarter implements ApplicationContextAware {
         String desc = scheduler.getDesc();
         BaseTaskService taskService = null;
 
-
         try {
             taskService = applicationContext.getBean(task, BaseTaskService.class);
         } catch (Exception e) {
@@ -90,11 +91,11 @@ public class SchedulerStarter implements ApplicationContextAware {
 
             // 没有cron表达式，直接触发一次
             if (StringUtils.isEmpty(cron)) {
-                taskScheduler.submit(taskService);
+                taskSchedulerThreadPool.submit(taskService);
             } else {
                 // 有corn表达式，按定时任务处理
                 CronTrigger cronTrigger = new CronTrigger(cron);
-                ScheduledFuture<?> future = taskScheduler.schedule(taskService, cronTrigger);
+                ScheduledFuture<?> future = taskSchedulerThreadPool.schedule(taskService, cronTrigger);
                 taskService.setFuture(future);
 
                 scheduledMap.put(id, new SchedulerWarp(scheduler, future));
@@ -109,7 +110,7 @@ public class SchedulerStarter implements ApplicationContextAware {
      *
      * @param id
      */
-    public void stopTask(String id) {
+    private void stopTask(String id) {
         log.info("准备移除定时任务：[{}]", id);
 
         SchedulerWarp schedulerWarp = scheduledMap.get(id);
@@ -119,6 +120,7 @@ public class SchedulerStarter implements ApplicationContextAware {
         } else {
             ScheduledFuture<?> future = schedulerWarp.getFuture();
             future.cancel(true);
+
             scheduledMap.remove(id);
             log.info("移除定时任务：[{}]", id);
         }
@@ -129,7 +131,7 @@ public class SchedulerStarter implements ApplicationContextAware {
      *
      * @param scheduler
      */
-    public void updateTask(SchedulerConfig.Scheduler scheduler) {
+    private void updateTask(Scheduler scheduler) {
         String id = scheduler.getId();
         log.info("准备更新定时任务：[{}]", id);
 
@@ -144,14 +146,28 @@ public class SchedulerStarter implements ApplicationContextAware {
         }
     }
 
+    public void add(Scheduler scheduler) {
+        this.addTask(scheduler);
+        schedulerService.createConfig(scheduler);
+    }
+
+    public void update(Scheduler scheduler) {
+        this.updateTask(scheduler);
+        schedulerService.updateConfig(scheduler);
+    }
+
+    public void remove(String id) {
+        this.stopTask(id);
+        schedulerService.removeConfig(id);
+    }
+
     /**
      * 获取任务列表
      *
      * @return
      */
-    public List<SchedulerConfig.Scheduler> getTasks() {
-        return scheduledMap.values().stream().map(SchedulerWarp::getScheduler).collect(Collectors.toList());
+    public List<Scheduler> getTasks() {
+        return schedulerService.getConfig();
     }
-
 
 }

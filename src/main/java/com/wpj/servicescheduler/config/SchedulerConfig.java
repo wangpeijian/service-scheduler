@@ -14,16 +14,6 @@ import java.util.List;
 @Component
 @ConfigurationProperties(prefix = "scheduler")
 public class SchedulerConfig {
-
-
+    private boolean database;
     private List<Scheduler> configs;
-
-
-    @Data
-    public static class Scheduler {
-        private String id;
-        private String task;
-        private String corn;
-        private String desc;
-    }
 }

@@ -1,6 +1,6 @@
-package com.wpj.servicescheduler.service;
+package com.wpj.servicescheduler.task.service;
 
-import com.wpj.servicescheduler.config.SchedulerConfig;
+import com.wpj.servicescheduler.config.Scheduler;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -15,7 +15,7 @@ import java.util.concurrent.ScheduledFuture;
 public abstract class BaseTaskService implements TaskService {
 
     private ScheduledFuture<?> future;
-    private SchedulerConfig.Scheduler scheduler;
+    private Scheduler scheduler;
 
     @Override
     public void run() {
@@ -23,6 +23,8 @@ public abstract class BaseTaskService implements TaskService {
         String currentClass = this.getClass().getName();
 
         String id = scheduler.getId();
+
+        // todo 如果分布式部署需要添加分布式锁处理，此处可以统一添加分布式锁
 
         try {
             log.info("[{}]-[{}]开始执行: ", id, currentClass);

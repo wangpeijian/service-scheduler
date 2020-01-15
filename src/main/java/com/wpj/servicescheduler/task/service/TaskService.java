@@ -1,4 +1,6 @@
-package com.wpj.servicescheduler.service;
+package com.wpj.servicescheduler.task.service;
+
+import java.io.IOException;
 
 /**
  * @author wangpejian
@@ -9,6 +11,6 @@ public interface TaskService extends Runnable {
     /**
      * 定时任务实现方法
      */
-    void doTask();
+    void doTask() throws IOException;
 
 }
