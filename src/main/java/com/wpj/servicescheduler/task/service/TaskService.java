@@ -10,6 +10,8 @@ public interface TaskService extends Runnable {
 
     /**
      * 定时任务实现方法
+     *
+     * @throws IOException
      */
     void doTask() throws IOException;
 
